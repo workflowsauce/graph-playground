@@ -49,6 +49,27 @@ export default function SigmaGraph(props: any) {
       edgeLabelSize: 12,
     });
 
+    function setSelectedNode(node?: string) {
+      if (node) {
+        state.selectedNode = node;
+      } else {
+        state.selectedNode = undefined;
+      }
+
+      // Refresh rendering
+      renderer.refresh({
+        skipIndexation: true,
+      });
+    }
+
+    renderer.on("clickNode", ({ node }) => {
+      setSelectedNode(node);
+    });
+
+    renderer.on("clickStage", () => {
+      setSelectedNode(undefined);
+    });
+
     function setHoveredNode(node?: string) {
       if (node) {
         state.hoveredNode = node;
@@ -66,23 +87,27 @@ export default function SigmaGraph(props: any) {
         skipIndexation: true,
       });
     }
+
     renderer.on("enterNode", ({ node }) => {
       setHoveredNode(node);
     });
     renderer.on("leaveNode", () => {
       setHoveredNode(undefined);
     });
+
     renderer.setSetting("edgeReducer", (edge, data) => {
       const res: any = { ...data };
 
       if (
-        state.hoveredNode &&
+        (state.hoveredNode || state.selectedNode) &&
         !graph
           .extremities(edge)
           .every(
             (n) =>
               n === state.hoveredNode ||
-              graph.areNeighbors(n, state.hoveredNode)
+              n === state.selectedNode ||
+              graph.areNeighbors(n, state.hoveredNode) ||
+              graph.areNeighbors(n, state.selectedNode)
           )
       ) {
         res.hidden = true;
@@ -103,15 +128,17 @@ export default function SigmaGraph(props: any) {
       const res: any = { ...data };
 
       if (
-        state.hoveredNeighbors &&
-        !state.hoveredNeighbors.has(node) &&
-        state.hoveredNode !== node
+        (state.hoveredNeighbors || state.selectedNode) &&
+        !state.hoveredNeighbors?.has(node) &&
+        state.hoveredNode !== node &&
+        state.selectedNode !== node &&
+        !graph.areNeighbors(node, state.selectedNode)
       ) {
         res.label = "";
         res.color = "#f6f6f6";
       }
 
-      if (state.selectedNode === node) {
+      if (state.selectedNode === node || state.hoveredNode === node) {
         res.highlighted = true;
       } else if (state.suggestions) {
         if (state.suggestions.has(node)) {
